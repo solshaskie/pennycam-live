@@ -1,103 +1,132 @@
-import Image from "next/image";
+﻿"use client"
 
-export default function Home() {
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Camera, Smartphone, Shield, Zap, Heart, Settings } from 'lucide-react'
+import Link from "next/link"
+import { AppHeader } from "@/components/app-header"
+
+export default function HomePage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
+      <div className="max-w-4xl mx-auto">
+        <AppHeader />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <Card className="hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/80 backdrop-blur">
+            <CardHeader className="text-center pb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Camera className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl">Home Base Station</CardTitle>
+              <CardDescription className="text-gray-600">
+                Set up your device at home to monitor Penny with live video and audio
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center pt-0">
+              <Link href="/base-station">
+                <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700" size="lg">
+                  <Camera className="w-4 h-4 mr-2" />
+                  Start Base Station
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/80 backdrop-blur">
+            <CardHeader className="text-center pb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Smartphone className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl">Remote Viewer</CardTitle>
+              <CardDescription className="text-gray-600">
+                Connect from anywhere to watch live video and talk to Penny
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center pt-0">
+              <Link href="/remote-viewer">
+                <Button className="w-full bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600" size="lg">
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Connect Remotely
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-white/80 backdrop-blur">
+            <CardHeader className="text-center pb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Zap className="w-10 h-10 text-white" />
+              </div>
+              <CardTitle className="text-xl">Smart Integrations</CardTitle>
+              <CardDescription className="text-gray-600">
+                Connect smart feeders, lights, and services to enhance Penny's care
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center pt-0">
+              <Link href="/integrations">
+                <Button className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600" size="lg">
+                  <Zap className="w-4 h-4 mr-2" />
+                  View Integrations
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="bg-white/80 backdrop-blur rounded-2xl p-8 shadow-lg mb-8">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg">
+              <img 
+                src="/penny-icon.png" 
+                alt="Penny" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            How PennyCam Works
+          </h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 text-white rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold shadow-lg">1</div>
+              <h3 className="font-semibold mb-2">Setup Base Station</h3>
+              <p className="text-sm text-gray-600">Position your device at home with camera access to monitor Penny's favorite spots</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 text-white rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold shadow-lg">2</div>
+              <h3 className="font-semibold mb-2">Connect Remotely</h3>
+              <p className="text-sm text-gray-600">Use the connection ID to access Penny's camera from your phone or computer</p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-red-500 text-white rounded-xl flex items-center justify-center mx-auto mb-4 text-lg font-bold shadow-lg">3</div>
+              <h3 className="font-semibold mb-2">Watch & Interact</h3>
+              <p className="text-sm text-gray-600">Enjoy live video streaming and use push-to-talk to communicate with Penny</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-4 gap-4">
+          <div className="bg-white/60 backdrop-blur rounded-xl p-4 text-center">
+            <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+            <h3 className="font-semibold text-sm">Secure Connection</h3>
+            <p className="text-xs text-gray-600">Private peer-to-peer streaming</p>
+          </div>
+          <div className="bg-white/60 backdrop-blur rounded-xl p-4 text-center">
+            <Zap className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+            <h3 className="font-semibold text-sm">Real-time Streaming</h3>
+            <p className="text-xs text-gray-600">Low latency video and audio</p>
+          </div>
+          <div className="bg-white/60 backdrop-blur rounded-xl p-4 text-center">
+            <Heart className="w-8 h-8 text-pink-500 mx-auto mb-2" />
+            <h3 className="font-semibold text-sm">Made for Penny</h3>
+            <p className="text-xs text-gray-600">Designed with love for pets</p>
+          </div>
+          <div className="bg-white/60 backdrop-blur rounded-xl p-4 text-center">
+            <Settings className="w-8 h-8 text-green-500 mx-auto mb-2" />
+            <h3 className="font-semibold text-sm">Easy Setup</h3>
+            <p className="text-xs text-gray-600">Ready in minutes</p>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
