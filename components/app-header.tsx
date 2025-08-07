@@ -12,7 +12,7 @@ export function AppHeader({ subtitle, imageSrc = "/penny-icon.png" }: AppHeaderP
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl border-4 border-white">
             <img 
-              src={imageSrc || "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face"}
+              src={imageSrc || "/penny-icon.png"}
               alt="Penny - The most adorable kitten" 
               className="w-full h-full object-cover"
               onError={(e) => {
