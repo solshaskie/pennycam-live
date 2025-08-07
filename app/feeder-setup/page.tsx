@@ -260,16 +260,16 @@ export default function FeederSetupPage() {
           title: '🥘 Add Food & Configure Meals',
           content: (
             <div className="space-y-3">
-              <p>Set up Penny's feeding schedule:</p>
+              <p>Set up Penny feeding schedule:</p>
               <ol className="list-decimal list-inside space-y-2 text-sm">
                 <li>Fill hopper with dry kibble (up to 24 cups)</li>
-                <li>In the app, create Penny's profile</li>
+                <li>In the app, create Penny profile</li>
                 <li>Set her weight and age for portion recommendations</li>
                 <li>Schedule meal times (e.g., 8am, 12pm, 6pm)</li>
                 <li>Test manual feeding to ensure proper dispensing</li>
               </ol>
               <div className="bg-green-50 p-3 rounded border border-green-200">
-                <p className="text-sm text-green-800">🎯 <strong>Portion guide:</strong> App automatically suggests portions based on Penny's profile!</p>
+                <p className="text-sm text-green-800">🎯 <strong>Portion guide:</strong> App automatically suggests portions based on Penny profile!</p>
               </div>
             </div>
           )
@@ -353,15 +353,15 @@ export default function FeederSetupPage() {
           )
         },
         {
-          title: '🐱 Register Penny's ID',
+          title: '🐱 Register Penny ID',
           content: (
             <div className="space-y-3">
-              <p>Set up Penny's identification:</p>
+              <p>Set up Penny identification:</p>
               <div className="space-y-3">
                 <div className="p-3 bg-gray-50 rounded border">
                   <p className="font-semibold text-sm mb-2">Option 1: Microchip (Recommended)</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
-                    <li>Get Penny's microchip number from vet</li>
+                    <li>Get Penny microchip number from vet</li>
                     <li>In app, add pet and enter microchip number</li>
                     <li>Hold Penny near feeder to register</li>
                   </ol>
@@ -369,7 +369,7 @@ export default function FeederSetupPage() {
                 <div className="p-3 bg-gray-50 rounded border">
                   <p className="font-semibold text-sm mb-2">Option 2: RFID Collar Tag</p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
-                    <li>Attach RFID tag to Penny's collar</li>
+                    <li>Attach RFID tag to Penny collar</li>
                     <li>In app, add pet and scan tag</li>
                     <li>Test by having Penny approach feeder</li>
                   </ol>
