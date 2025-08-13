@@ -1,11 +1,18 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Camera, Mic, MicOff, Video, VideoOff, Wifi, Home, Settings } from 'lucide-react'
+import { Camera, Mic, MicOff, Video, VideoOff, Wifi, Home, Settings, Zap } from 'lucide-react'
 import Link from "next/link"
 import { AppHeader } from "@/components/app-header"
+
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+};
 
 export default function BaseStation() {
   const [isStreaming, setIsStreaming] = useState(false)
@@ -13,111 +20,181 @@ export default function BaseStation() {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true)
   const [connectionId, setConnectionId] = useState("")
   const [debugInfo, setDebugInfo] = useState("")
+  const [webRtcStatus, setWebRtcStatus] = useState("Disconnected")
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [motionDetected, setMotionDetected] = useState(false)
   const [motionSensitivity, setMotionSensitivity] = useState(50)
   const [lastMotionTime, setLastMotionTime] = useState<Date | null>(null)
 
   useEffect(() => {
-    // Generate a simple connection ID
     setConnectionId(Math.random().toString(36).substring(2, 8).toUpperCase())
   }, [])
+
+  const stopStreaming = useCallback(async () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close()
+      peerConnectionRef.current = null
+    }
+
+    setIsStreaming(false)
+    setDebugInfo("Streaming stopped.")
+    setWebRtcStatus("Disconnected")
+
+    if (connectionId) {
+      try {
+        await fetch(`/api/signaling/offer?id=${connectionId}`, { method: 'DELETE' });
+        console.log("Signaling data cleared on the server.");
+      } catch (error) {
+        console.error("Failed to clear signaling data:", error);
+      }
+    }
+  }, [connectionId]);
+
+  // Effect for cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopStreaming();
+    }
+  }, [stopStreaming]);
+
 
   const startStreaming = async () => {
     try {
       console.log("Attempting to access camera...")
       setDebugInfo("Requesting camera access...")
       
-      setIsStreaming(true)
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      })
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       
       console.log("Camera access successful!")
       setDebugInfo("Camera access granted, setting up video...")
+      setIsStreaming(true)
       
       if (videoRef.current) {
-        console.log("Setting srcObject on video element")
         videoRef.current.srcObject = stream
-        
-        videoRef.current.onloadedmetadata = () => {
-          console.log("Video metadata loaded")
-          if (videoRef.current) {
-            videoRef.current.play()
-              .then(() => {
-                console.log("Video playing successfully")
-                setDebugInfo("PennyCam is now streaming!")
-              })
-              .catch(err => {
-                console.error("Play failed:", err)
-                setDebugInfo(`Play failed: ${err.message}`)
-              })
-          }
-        }
-        
-        videoRef.current.play().catch(err => {
-          console.log("Immediate play failed, waiting for metadata:", err.message)
-        })
+        videoRef.current.play().catch(console.error)
       }
-      
-      streamRef.current = stream
-      
-      const audioTracks = stream.getAudioTracks()
-      if (audioTracks.length === 0) {
-        setIsMicEnabled(false)
-      }
-      
-    } catch (error: any) {
+      streamRef.current = stream;
+
+      // Start WebRTC connection
+      await setupWebRTCConnection(stream);
+
+    } catch (error: unknown) {
       console.error("Camera access failed:", error)
-      setDebugInfo(`Camera access failed: ${error.message}`)
-      setIsStreaming(false)
-      
-      try {
-        console.log("Trying video-only fallback...")
-        setDebugInfo("Trying video-only fallback...")
-        setIsStreaming(true)
-        
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        })
-        
-        if (videoRef.current) {
-          videoRef.current.srcObject = videoStream
-          videoRef.current.play().catch(console.error)
-        }
-        
-        streamRef.current = videoStream
-        setIsMicEnabled(false)
-        setDebugInfo("Video-only mode active")
-        
-      } catch (videoError: any) {
-        console.error("Video-only fallback also failed:", videoError)
-        setDebugInfo(`All attempts failed: ${videoError.message}`)
-        setIsStreaming(false)
+      if (error instanceof Error) {
+        setDebugInfo(`Camera access failed: ${error.message}`)
+      } else {
+        setDebugInfo("An unknown error occurred while accessing the camera.")
       }
+      setIsStreaming(false)
     }
   }
 
-  const stopStreaming = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
+  const setupWebRTCConnection = async (stream: MediaStream) => {
+    setWebRtcStatus("Initializing...");
+    peerConnectionRef.current = new RTCPeerConnection(ICE_SERVERS);
+
+    peerConnectionRef.current.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log("Sending ICE candidate:", event.candidate);
+        fetch(`/api/signaling/ice-candidate?id=${connectionId}&peerType=base-station`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidate: event.candidate }),
+        });
+      }
+    };
+
+    peerConnectionRef.current.oniceconnectionstatechange = () => {
+      if (peerConnectionRef.current) {
+        setWebRtcStatus(peerConnectionRef.current.iceConnectionState);
+        console.log("ICE Connection State:", peerConnectionRef.current.iceConnectionState);
+      }
+    };
+
+    stream.getTracks().forEach(track => {
+      peerConnectionRef.current!.addTrack(track, stream);
+    });
+
+    try {
+      setDebugInfo("Creating WebRTC offer...");
+      const offer = await peerConnectionRef.current.createOffer();
+      await peerConnectionRef.current.setLocalDescription(offer);
+
+      console.log("Sending offer to signaling server");
+      await fetch(`/api/signaling/offer?id=${connectionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offer }),
+      });
+      setDebugInfo("Offer sent. Waiting for remote viewer...");
+
+      // Start polling for the answer
+      pollingIntervalRef.current = setInterval(async () => {
+        const answerResponse = await fetch(`/api/signaling/answer?id=${connectionId}`);
+        if (answerResponse.ok) {
+          const { answer } = await answerResponse.json();
+          if (answer && peerConnectionRef.current?.signalingState === "have-local-offer") {
+            console.log("Received answer from remote viewer");
+            setDebugInfo("Answer received. Establishing connection...");
+            await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+
+            // Stop polling for answer once received
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+            }
+            // Start polling for ICE candidates now
+            startIceCandidatePolling();
+          }
+        }
+      }, 5000);
+
+    } catch (error) {
+      console.error("WebRTC setup failed:", error);
+      setDebugInfo("Failed to set up WebRTC connection.");
+      stopStreaming();
     }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-    
-    setIsStreaming(false)
-    setDebugInfo("")
+  };
+
+  const startIceCandidatePolling = () => {
+      // Poll for remote ICE candidates
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/signaling/ice-candidate?id=${connectionId}&peerType=base-station`);
+            if(response.ok) {
+                const { candidates } = await response.json();
+                if (candidates && candidates.length > 0) {
+                    console.log(`Received ${candidates.length} new ICE candidates.`);
+                    candidates.forEach((candidate: RTCIceCandidateInit) => {
+                        if (peerConnectionRef.current) {
+                           peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error polling for ICE candidates:", error);
+        }
+    }, 5000);
   }
 
   const toggleMic = () => {
@@ -126,8 +203,6 @@ export default function BaseStation() {
       if (audioTrack) {
         audioTrack.enabled = !isMicEnabled
         setIsMicEnabled(!isMicEnabled)
-      } else {
-        alert("No microphone available. Audio access may have been denied.")
       }
     }
   }
@@ -138,42 +213,22 @@ export default function BaseStation() {
       if (videoTrack) {
         videoTrack.enabled = !isVideoEnabled
         setIsVideoEnabled(!isVideoEnabled)
-      } else {
-        alert("No camera available.")
       }
     }
   }
 
-  // Motion detection simulation for kitten monitoring
+  // Motion detection simulation
   useEffect(() => {
     if (!isStreaming) return
-    
     const motionInterval = setInterval(() => {
-      const motionChance = motionSensitivity / 100 * 0.2
-      const hasMotion = Math.random() < motionChance
-      
-      if (hasMotion && !motionDetected) {
-        console.log('🐱 KITTEN MOTION DETECTED! Sensitivity:', motionSensitivity + '%')
+      if (Math.random() < motionSensitivity / 100 * 0.2) {
         setMotionDetected(true)
-        const now = new Date()
-        setLastMotionTime(now)
-        
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('PennyCam Kitten Alert', {
-            body: `Penny is moving around at ${now.toLocaleTimeString()}`,
-            icon: '/penny-icon.png'
-          })
-        }
-        
-        setTimeout(() => {
-          console.log('✅ Motion detection reset')
-          setMotionDetected(false)
-        }, 3000)
+        setLastMotionTime(new Date())
+        setTimeout(() => setMotionDetected(false), 3000)
       }
     }, 1500)
-    
     return () => clearInterval(motionInterval)
-  }, [isStreaming, motionSensitivity, motionDetected])
+  }, [isStreaming, motionSensitivity])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4">
@@ -194,13 +249,7 @@ export default function BaseStation() {
             <Card className="bg-white/80 backdrop-blur border-0 shadow-xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg overflow-hidden">
-                    <img 
-                      src="/penny-icon.png" 
-                      alt="Penny" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <img src="/penny-icon.png" alt="Penny" className="w-6 h-6 object-cover" />
                   Penny's Live Camera Feed
                 </CardTitle>
               </CardHeader>
@@ -213,57 +262,32 @@ export default function BaseStation() {
                 
                 <div className="relative bg-gray-900 rounded-xl overflow-hidden shadow-inner" style={{ aspectRatio: '16/9' }}>
                   {isStreaming ? (
-                    <video
-                      ref={videoRef}
-                      autoPlay
-                      muted
-                      playsInline
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'cover',
-                        display: 'block'
-                      }}
-                      onLoadedData={() => {
-                        console.log("Video data loaded")
-                        setDebugInfo("Video data loaded successfully")
-                      }}
-                      onPlay={() => {
-                        console.log("Video started playing")
-                        setDebugInfo("PennyCam is live!")
-                      }}
-                      onError={(e) => {
-                        console.error("Video error:", e)
-                        setDebugInfo("Video playback error")
-                      }}
-                    />
+                    <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
                   ) : (
                     <div className="flex items-center justify-center h-full text-white" style={{ minHeight: '300px' }}>
                       <div className="text-center">
-                        <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-4 opacity-75 shadow-lg">
-                          <img 
-                            src="/penny-icon.png" 
-                            alt="Penny" 
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                        <img src="/penny-icon.png" alt="Penny" className="w-20 h-20 object-cover mx-auto mb-4 opacity-75 shadow-lg rounded-2xl" />
                         <p className="text-lg font-medium">PennyCam not active</p>
-                        <p className="text-sm opacity-75">Click "Start Streaming" to watch Penny</p>
+                        <p className="text-sm opacity-75">Click "Start PennyCam" to begin streaming</p>
                       </div>
                     </div>
                   )}
                   
                   {isStreaming && (
-                    <div className="absolute top-4 left-4">
-                      <div className="flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg animate-pulse">
-                        <div className="w-2 h-2 bg-white rounded-full"></div>
-                        PENNY LIVE
-                      </div>
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg animate-pulse">
+                            <div className="w-2 h-2 bg-white rounded-full"></div>
+                            PENNY LIVE
+                        </div>
+                        <div className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                            <Zap className="w-3 h-3"/>
+                            {webRtcStatus}
+                        </div>
                     </div>
                   )}
                   
                   {motionDetected && (
-                    <div className="absolute top-16 left-4">
+                    <div className="absolute top-28 left-4">
                       <div className="flex items-center gap-2 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg animate-pulse">
                         <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
                         KITTEN DETECTED
@@ -285,21 +309,11 @@ export default function BaseStation() {
                     </Button>
                   )}
                   
-                  <Button
-                    onClick={toggleVideo}
-                    variant={isVideoEnabled ? "outline" : "destructive"}
-                    disabled={!isStreaming}
-                    className="bg-white/80 backdrop-blur shadow-lg"
-                  >
+                  <Button onClick={toggleVideo} variant={isVideoEnabled ? "outline" : "destructive"} disabled={!isStreaming} className="bg-white/80 backdrop-blur shadow-lg">
                     {isVideoEnabled ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
                   </Button>
                   
-                  <Button
-                    onClick={toggleMic}
-                    variant={isMicEnabled ? "outline" : "destructive"}
-                    disabled={!isStreaming}
-                    className="bg-white/80 backdrop-blur shadow-lg"
-                  >
+                  <Button onClick={toggleMic} variant={isMicEnabled ? "outline" : "destructive"} disabled={!isStreaming} className="bg-white/80 backdrop-blur shadow-lg">
                     {isMicEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                   </Button>
                 </div>
@@ -342,7 +356,7 @@ export default function BaseStation() {
                   Kitten Motion Settings
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Motion Sensitivity</span>
@@ -367,30 +381,6 @@ export default function BaseStation() {
                       Last kitten activity: {lastMotionTime.toLocaleTimeString()}
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-white/80 backdrop-blur border-0 shadow-xl">
-              <CardHeader>
-                <CardTitle>Penny Care Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm space-y-3">
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p>Position camera to capture Penny's favorite nap spots</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p>Keep this device plugged in for continuous kitten monitoring</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p>Share the PennyCam ID with your remote device</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 bg-pink-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p>Gentle motion detection perfect for kittens</p>
                 </div>
               </CardContent>
             </Card>
